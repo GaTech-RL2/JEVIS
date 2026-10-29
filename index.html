@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JEVIS: Joint Entropy Estimation in 3DGS via Visibility Field for Active Mapping</title>
+<meta name="description" content="JEVIS: a theoretically grounded framework for quantifying the expected information gain of multiple planned observations in 3D Gaussian Splatting through joint entropy estimation.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232a78d6'/%3E%3Ctext x='50' y='70' font-family='Arial,sans-serif' font-size='56' font-weight='700' fill='white' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="static/css/style.css?v=a10898916c">
+</head>
+<body>
+<button type="button" class="scroll-to-top" title="Scroll to top">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15.5l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+<nav class="page-nav" aria-label="Page sections">
+  <ul>
+    <li><a href="#tldr">TL;DR</a></li>
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#contributions">Contributions</a></li>
+    <li><a href="#method">Method</a></li>
+    <li><a href="#entropy-qualitative">Entropy Estimation<br>Qualitative Results</a></li>
+    <li><a href="#mapping-qualitative">Active Mapping<br>Qualitative Results</a></li>
+    <li><a href="#radar">Active Mapping<br>Quantitative Results</a></li>
+    <li><a href="#bibtex">BibTeX</a></li>
+  </ul>
+</nav>
+<div class="more-works">
+  <button type="button" class="more-works-btn" aria-expanded="false" aria-controls="more-works-menu">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6.2L4.6 18.4A1.7 1.7 0 0 0 6.1 21h11.8a1.7 1.7 0 0 0 1.5-2.6L14 9.2V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.4 15h9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    More Works
+    <svg class="more-works-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="more-works-menu" id="more-works-menu" hidden>
+    <p class="more-works-head">Related Work</p>
+    <a class="work-item" href="https://gatech-rl2.github.io/GAVIS/" target="_blank" rel="noopener noreferrer">
+      <span class="work-title">GAVIS: Uncertainty-driven 3D Gaussian Splatting Active Mapping via Anisotropic Visibility Field</span>
+      <span class="work-desc">Uncertainty quantification and active mapping for 3D Gaussian Splatting via an anisotropic visibility field.</span>
+      <span class="work-venue">CVPR 2026</span>
+    </a>
+    <a class="work-item" href="https://sites.google.com/view/nvf-cvpr24/" target="_blank" rel="noopener noreferrer">
+      <span class="work-title">NVF: Neural Visibility Field for Uncertainty-Driven Active Mapping</span>
+      <span class="work-desc">Uncertainty quantification and active mapping for NeRF via a learned visibility field.</span>
+      <span class="work-venue">CVPR 2024</span>
+    </a>
+  </div>
+</div>
+<main>
+
+<header class="hero">
+  <div class="container">
+    <h1 class="wordmark">JEVIS</h1>
+    <p class="title">Joint Entropy Estimation in 3DGS via Visibility Field <br>for Active Mapping</p>
+
+    <div class="hero-authors">
+      <span><a href="https://dahuja8.github.io/" target="_blank" rel="noopener noreferrer">Dhruv Ahuja</a><sup>*</sup></span>
+      <span><a href="https://xsj01.github.io/" target="_blank" rel="noopener noreferrer">Shangjie Xue</a><sup>*†</sup></span>
+      <span><a href="https://www.linkedin.com/in/jesse-n-dill/" target="_blank" rel="noopener noreferrer">Jesse Dill</a></span>
+      <span><a href="https://ae.gatech.edu/directory/person/panagiotis-tsiotras" target="_blank" rel="noopener noreferrer">Panagiotis Tsiotras</a></span>
+      <span><a href="https://dellaert.github.io/" target="_blank" rel="noopener noreferrer">Frank Dellaert</a></span>
+      <span><a href="https://faculty.cc.gatech.edu/~danfei/" target="_blank" rel="noopener noreferrer">Danfei Xu</a></span>
+    </div>
+    <p class="hero-affil">Georgia Institute of Technology</p>
+    <p class="hero-notes"><sup>*</sup>Equal Contribution &nbsp; <sup>†</sup>Project Lead</p>
+
+  </div>
+</header>
+
+<section class="teaser-anim">
+  <video src="static/videos/teaser.mp4?v=f4f93355d6" width="1920" height="1080" muted loop playsinline autoplay preload="auto" disablepictureinpicture disableremoteplayback aria-label="Teaser animation: an agent mapping a home compares two candidate trajectories. JEVIS scores them by their joint entropy, while the GAVIS baseline double-counts the overlap between views; the agent follows the better trajectory and explores the rest of the scene."></video>
+</section>
+
+<section id="tldr">
+  <div class="container">
+    <div class="tldr">
+      <span class="tldr-badge">TL;DR</span>
+      <p><b>JEVIS</b> is a principled framework for quantifying the expected information gain of multiple planned views in 3DGS through joint entropy estimation that accounts for cross-view dependencies, enabling long-horizon and multi-agent active mapping.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="abstract">
+  <div class="container">
+    <h2>Abstract</h2>
+    <p class="prose">Active mapping requires planning observations that maximally reduce uncertainty about an unknown scene. Recent methods have substantially improved uncertainty quantification in 3D Gaussian Splatting (3DGS) by explicitly modeling visibility, assigning higher uncertainty to unobserved regions. However, these methods estimate the entropy of a single image observation and therefore primarily support myopic next-best-view selection. Practical deployments instead require estimating the joint entropy of multiple observations, such as views along a long-horizon trajectory or viewpoints assigned across a team of robots. In these settings, different views can observe common unseen regions of the scene, and the correlation between their observations is not negligible. To this end, we present <b>Joint Entropy estimation in 3DGS via VISibility field (JEVIS)</b>, a theoretically grounded framework for quantifying the expected information gain of multiple planned observations in 3DGS through joint entropy estimation. By leveraging a maximum-likelihood observation (MLO) approximation, JEVIS efficiently estimates joint entropy across multiple views. We evaluate JEVIS in long-horizon single-agent and multi-agent active mapping across diverse indoor and space-robotics environments. Results show that JEVIS more accurately captures joint uncertainty and produces higher-fidelity reconstructions than existing methods.</p>
+  </div>
+</section>
+
+<section class="section" id="contributions">
+  <div class="container">
+    <h2>Contributions</h2>
+    <ol class="contrib">
+      <li><span>We estimate the <strong>joint entropy</strong> of planned 3DGS observations to guide <strong>long-horizon active mapping</strong>.</span></li>
+      <li><span>We extend the formulation to multi-robot planning, offering, to our knowledge, the first <strong>information-theoretic</strong> approach to <strong>long-horizon multi-agent active mapping</strong> with radiance fields.</span></li>
+      <li><span>Across indoor and space environments, JEVIS improves reconstruction quality over baselines in single- and multi-agent settings.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="method">
+  <div class="container">
+    <h2>Method</h2>
+    <figure class="figure">
+      <img src="static/images/pipeline-mapping.webp?v=f2941140ad" width="2000" height="978" alt="Active mapping step: from the scene and the current 3DGS with its training views, JEVIS scores candidate paths using the uncertainty maps and synthesized views of their planned views; the agent executes the path with the highest joint entropy as the next best trajectory.">
+      <figcaption>JEVIS scores candidate trajectories by their estimated joint observation entropy. The agent executes the highest-scoring trajectory and updates the 3DGS reconstruction with the acquired observations.</figcaption>
+    </figure>
+    <figure class="figure figure--scoring">
+      <img src="static/images/pipeline-scoring.webp?v=c31b550d21" width="1549" height="994" alt="Candidate trajectory scoring (JEVIS): a visibility field built from the 3DGS and training views is used to evaluate each planned view of the candidate trajectory in turn (UAR), the visibility field is updated after each view, and the per-view entropies are summed into the trajectory's joint entropy.">
+      <figcaption>JEVIS builds a visibility field (VF) from the trained 3DGS model and training poses. For each candidate trajectory, uncertainty aware rasterization (UAR) estimates each view’s entropy, while UpdateVF incorporates preceding planned poses into the VF before subsequent views are scored. These updates discount uncertainty shared across views. Summing the resulting conditional entropies estimates the trajectory’s joint entropy. Trajectories can be of arbitrary length.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="results">
+  <div class="container">
+    <h2>Results</h2>
+    <div class="results-group" id="entropy-qualitative">
+      <h3 class="results-title">Entropy Estimation Qualitative Results</h3>
+      <figure class="video-fig">
+        <video data-src="static/videos/room_entropy.mp4?v=935aa98110" muted loop playsinline autoplay preload="none" disablepictureinpicture disableremoteplayback></video>
+        <figcaption>The candidate trajectory extends from observed into unseen regions, with substantial overlap between planned views. JEVIS sums each view’s entropy conditioned on preceding views to obtain the trajectory’s joint entropy, discounting previously covered regions. GAVIS scores views independently and double-counts overlap. JEVIS’s uncertainty maps more closely match ground-truth visibility.</figcaption>
+      </figure>
+      <figure class="video-fig">
+        <video data-src="static/videos/space_entropy.mp4?v=08deb0d1b3" muted loop playsinline autoplay preload="none" disablepictureinpicture disableremoteplayback></video>
+        <figcaption>The candidate trajectory circles the spacecraft and revisits an earlier viewpoint. JEVIS sums each view’s entropy conditioned on preceding views to obtain the trajectory’s joint entropy, discounting the revisited region. GAVIS scores views independently and double-counts overlap. JEVIS’s uncertainty maps more closely match ground-truth visibility.</figcaption>
+      </figure>
+    </div>
+    <div class="results-group" id="mapping-qualitative">
+      <h3 class="results-title">Active Mapping Qualitative Results</h3>
+      <figure class="video-fig">
+        <video data-src="static/videos/single_am.mp4?v=387935d2af" muted loop playsinline autoplay preload="none" disablepictureinpicture disableremoteplayback></video>
+        <figcaption>JEVIS explores new regions along its trajectory, while the baselines repeatedly observe previously seen areas.</figcaption>
+      </figure>
+      <figure class="video-fig">
+        <video data-src="static/videos/multi_am.mp4?v=50fc7253f1" muted loop playsinline autoplay preload="none" disablepictureinpicture disableremoteplayback></video>
+        <figcaption>JEVIS agents explore complementary regions in parallel, whereas baseline agents follow largely overlapping trajectories.</figcaption>
+      </figure>
+    </div>
+    <div class="radar-block" id="radar">
+      <h3 class="radar-title" id="radar-title">Multi-Agent Active Mapping Quantitative Results</h3>
+      <div class="seg" role="group" aria-label="Setting">
+        <button type="button" data-setting="single" aria-pressed="false">Single-agent</button>
+        <button type="button" data-setting="multi" aria-pressed="true">Multi-agent</button>
+      </div>
+      <div class="radar-wrap"><svg class="radar-chart" viewBox="0 0 640 552" role="img" aria-labelledby="radar-title"></svg><div class="radar-tip"></div></div>
+      <div class="radar-legend" aria-label="Methods (click to show or hide)"></div>
+      <p class="radar-caption">Metrics span view synthesis quality (PSNR, SSIM, LPIPS), mesh reconstruction quality (CR: completion ratio), visibility area (VIS), and uncertainty quantification time (T<sub>UQ</sub>: ms). Multi-agent runs use 3 agents and half as many planning steps as single-agent runs. All axes are normalized so that farther from the center is better.</p>
+    </div>
+  </div>
+</section>
+
+
+<section class="section" id="bibtex">
+  <div class="container">
+    <h2>BibTeX</h2>
+    <div class="bib-wrap">
+      <pre class="bib" id="bibtex-code"><code>@article{ahuja2026jevis,
+  title     = {JEVIS: Joint Entropy Estimation in 3DGS via Visibility Field for Active Mapping},
+  author    = {Ahuja, Dhruv and Xue, Shangjie and Dill, Jesse and Tsiotras, Panagiotis and Dellaert, Frank and Xu, Danfei},
+  journal   = {arXiv preprint arXiv:xxxx.xxxxx},
+  year      = {2026}
+}
+
+@inproceedings{xue2026gavis,
+  title     = {Uncertainty-driven 3D Gaussian Splatting Active Mapping via Anisotropic Visibility Field},
+  author    = {Xue, Shangjie and Dill, Jesse and Ahuja, Dhruv and Dellaert, Frank and Tsiotras, Panagiotis and Xu, Danfei},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year      = {2026}
+}
+
+@inproceedings{xue2024nvf,
+  title     = {Neural Visibility Field for Uncertainty-Driven Active Mapping},
+  author    = {Xue, Shangjie and Dill, Jesse and Mathur, Pranay and Dellaert, Frank and Tsiotras, Panagiotis and Xu, Danfei},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {18122--18132},
+  year      = {2024}
+}</code></pre>
+      <button type="button" class="copy-btn" id="copy-bibtex"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Copy</span></button>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="footer">
+  <div class="container">
+    <p>This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank" rel="noopener noreferrer">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank" rel="noopener noreferrer">Nerfies</a> project page.</p>
+  </div>
+</footer>
+<script src="static/js/radar-data.js?v=396b939437"></script>
+<script src="static/js/radar.js?v=dfe1a6f95d"></script>
+<script src="static/js/video-controls.js?v=e8c3f4695e"></script>
+<script>
+// first screen = title block + the whole teaser: the teaser's height is capped at what is left of the
+// window below the title block (CSS reads --hero-h; without JS it falls back to one screen), within the
+// minimum and maximum sizes set in the CSS
+(function () {
+  var hero = document.querySelector('.hero');
+  if (!hero) return;
+  function fit() { document.documentElement.style.setProperty('--hero-h', hero.offsetHeight + 'px'); }
+  fit();
+  window.addEventListener('resize', fit);
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(hero);
+})();
+
+// More Works menu: toggle from the button, close on a click elsewhere, when keyboard focus moves on, or Escape
+(function () {
+  var btn = document.querySelector('.more-works-btn'), menu = document.getElementById('more-works-menu');
+  if (!btn || !menu) return;
+  function set(open) { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); }
+  btn.addEventListener('click', function () { set(menu.hidden); });
+  document.addEventListener('pointerdown', function (e) { if (!menu.hidden && !btn.parentNode.contains(e.target)) set(false); });
+  // the button is pinned, so a menu left open would cover whatever the reader tabs to next
+  btn.parentNode.addEventListener('focusout', function (e) { if (!menu.hidden && e.relatedTarget && !btn.parentNode.contains(e.relatedTarget)) set(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) { set(false); btn.focus(); } });
+})();
+
+// scroll to top: the pinned button shows once the reader is 300px down (as on GAVIS); the scroll is smooth
+// unless they prefer reduced motion (html's scroll-behavior). It is first in the page, so the next Tab after
+// using it goes to the first control at the top. On phones it sits just above the More Works button, so the
+// CSS reads that button's height (--mw-h), which grows with enlarged text
+(function () {
+  var btn = document.querySelector('.scroll-to-top'), mw = document.querySelector('.more-works-btn');
+  if (!btn) return;
+  function update() { btn.classList.toggle('is-shown', window.scrollY > 300); }
+  btn.addEventListener('click', function () { window.scrollTo(0, 0); });
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+  if (mw && 'ResizeObserver' in window) new ResizeObserver(function () { document.documentElement.style.setProperty('--mw-h', mw.offsetHeight + 'px'); }).observe(mw);
+})();
+
+// BibTeX: copy to clipboard, with a short "Copied" confirmation
+(function () {
+  var btn = document.getElementById('copy-bibtex'), code = document.getElementById('bibtex-code');
+  if (!btn || !code) return;
+  var label = btn.querySelector('span'), timer;
+  function done(text) { label.textContent = text; clearTimeout(timer); timer = setTimeout(function () { label.textContent = 'Copy'; }, 2000); }
+  btn.addEventListener('click', function () {
+    var text = code.textContent;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { done('Copied'); }, function () { done('Press Ctrl+C'); });
+    } else {
+      var range = document.createRange(); range.selectNodeContents(code);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      try { done(document.execCommand('copy') ? 'Copied' : 'Press Ctrl+C'); } catch (err) { done('Press Ctrl+C'); }
+    }
+  });
+})();
+
+// teaser: loops; a click pauses/resumes it, and it pauses while scrolled out of view
+(function () {
+  var v = document.querySelector('.teaser-anim video');
+  if (!v) return;
+  var userPaused = false;
+  function play() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+  v.addEventListener('click', function () {
+    if (v.paused) { userPaused = false; play(); } else { userPaused = true; v.pause(); }
+  });
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) {
+      if (es[0].isIntersecting) { if (!userPaused) play(); } else { v.pause(); }
+    }).observe(v);
+  }
+})();
+
+// load each video when it nears the viewport, play only while visible;
+// a click pauses it, and it stays paused (even after scrolling away and back) until clicked again
+(function () {
+  var vids = document.querySelectorAll('video[data-src]');
+  function load(v) { if (!v.src) { v.src = v.dataset.src; } }
+  function play(v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+  vids.forEach(function (v) {
+    v.addEventListener('click', function () {
+      if (v.paused) { v.userPaused = false; load(v); play(v); }
+      else { v.userPaused = true; v.pause(); }
+    });
+  });
+  if (!('IntersectionObserver' in window)) { vids.forEach(function (v) { load(v); play(v); }); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      var v = e.target;
+      if (e.isIntersecting) { load(v); if (!v.userPaused) { play(v); } }
+      else if (v.src) { v.pause(); }
+    });
+  }, { rootMargin: '200px 0px' });
+  vids.forEach(function (v) { io.observe(v); });
+})();
+
+// left nav: highlight the section being read; a clicked link stays highlighted until the reader scrolls
+(function () {
+  var nav = document.querySelector('.page-nav'), links = Array.prototype.slice.call(nav.querySelectorAll('a'));
+  var teaser = document.querySelector('.teaser-anim');
+  // the full-width teaser runs under the sidebar: keep the sidebar invisible while the teaser is behind
+  // it, and fade it in as the teaser's bottom edge scrolls up through the sidebar's band
+  function fadeIn() {
+    var n = nav.getBoundingClientRect();
+    if (!teaser || !n.height) return;
+    var o = Math.max(0, Math.min(1, (n.bottom - teaser.getBoundingClientRect().bottom) / n.height));
+    nav.style.opacity = o;
+    nav.style.visibility = o < 0.02 ? 'hidden' : '';
+  }
+  var sections = links.map(function (a) { return document.querySelector(a.hash); });
+  var pinned = null, queued = false;
+  function update() {
+    queued = false;
+    // a section is "being read" once its heading (or its top, if it has none) passes 150px from the top
+    // (a fixed line, not a % of the window, so a short section still gets its turn)
+    var current = pinned, line = 150;
+    if (!current) {
+      sections.forEach(function (s) { if ((s.querySelector('h2, h3') || s).getBoundingClientRect().top <= line) { current = s; } });
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) { current = sections[sections.length - 1]; }
+    }
+    links.forEach(function (a, i) { a.classList.toggle('active', sections[i] === current); });
+    fadeIn();
+  }
+  links.forEach(function (a, i) { a.addEventListener('click', function () { pinned = sections[i]; update(); }); });
+  ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (type) {
+    window.addEventListener(type, function () { pinned = null; }, { passive: true });
+  });
+  window.addEventListener('scroll', function () { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+})();
+</script>
+</body>
+</html>
